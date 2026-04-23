@@ -1,0 +1,45 @@
+# Environments & Secrets (CRITICAL)
+.env
+.env.local
+.env.*
+**/ .env
+**/ .env.*
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+env/
+backend/venv/
+.pytest_cache/
+
+# Node / Frontend
+node_modules/
+frontend/node_modules/
+dist/
+dist-ssr/
+.eslintcache
+.vite/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Project Cleanup (Remove temporary scripts if desired)
+# backend/test_api.py
+# backend/seed_volunteers.py
