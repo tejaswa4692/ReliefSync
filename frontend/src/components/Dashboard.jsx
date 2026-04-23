@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { AlertTriangle, Users, MapPin, Activity } from 'lucide-react';
+import { NavLink } from 'react-router-dom';
 
 const API_URL = 'http://localhost:8000';
 
@@ -38,20 +39,32 @@ export default function Dashboard() {
       <h2 style={{ marginBottom: '2rem' }}>Crisis Command Center</h2>
       
       {alerts.length > 0 && (
-        <div style={{ marginBottom: '2rem' }}>
-          <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--danger)' }}>
-            <AlertTriangle /> Active Spikes Detected
-          </h3>
+        <div style={{ marginBottom: '3rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
+            <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--danger)', animation: 'pulse 2s infinite' }}></div>
+            <h3 style={{ margin: 0, color: 'var(--danger)', fontSize: '1.2rem', fontWeight: 800 }}>AI EMERGENCY DETECTION</h3>
+          </div>
+          
           <div className="grid grid-cols-2">
             {alerts.map((alert, idx) => (
-              <div key={idx} className="card alert-card">
-                <div className="alert-title">
-                  {alert.issue_type} in {alert.location}
+              <div key={idx} className="card" style={{ border: '2px solid var(--danger)', background: 'rgba(231, 76, 60, 0.03)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                  <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text)' }}>
+                    {alert.issue_type} Alert: <span style={{ color: 'var(--danger)' }}>{alert.location}</span>
+                  </div>
+                  <div className="badge" style={{ background: 'var(--danger)', color: 'white', border: 'none' }}>
+                    {alert.spike_score}x Activity Spike
+                  </div>
                 </div>
-                <p>Spike Score: <strong>{alert.spike_score}x</strong> normal baseline.</p>
-                <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-light)' }}>
-                  Current 24h count: {alert.current_count} (Avg: {alert.baseline_avg}/day)
+                
+                <p style={{ fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 1rem 0' }}>
+                  Our AI detected an unusual surge of <strong>{alert.current_count}</strong> reports in this area. 
+                  This is <strong>{alert.spike_score} times higher</strong> than the normal daily average of {alert.baseline_avg}.
                 </p>
+                
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-light)', letterSpacing: '0.05rem', textTransform: 'uppercase' }}>
+                  STATUS: IMMEDIATE INVESTIGATION REQUIRED
+                </div>
               </div>
             ))}
           </div>
@@ -86,9 +99,9 @@ export default function Dashboard() {
             </div>
             
             <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-              <a href={`/volunteer?issue=${issue.id}`} className="btn btn-outline" style={{ width: '100%' }}>
-                Find Volunteers
-              </a>
+              <NavLink to={`/match/${issue.id}`} className="btn btn-primary" style={{ width: '100%', textDecoration: 'none', textAlign: 'center', display: 'block' }}>
+                Analyze & Match Volunteers
+              </NavLink>
             </div>
           </div>
         ))}

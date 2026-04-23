@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { Activity, ShieldAlert, HeartHandshake, Send, LogIn, LogOut, User as UserIcon } from 'lucide-react';
+import { Activity, ShieldAlert, HeartHandshake, Send, LogIn, LogOut, Mail, User as UserIcon } from 'lucide-react';
 import axios from 'axios';
 import { supabase } from './supabase';
 import Dashboard from './components/Dashboard';
@@ -9,6 +9,7 @@ import VolunteerMatching from './components/VolunteerMatching';
 import Login from './components/Login';
 import Signup from './components/Signup';
 import Profile from './components/Profile';
+import Inbox from './components/Inbox';
 import VolunteersList from './components/VolunteersList';
 import VolunteerDetail from './components/VolunteerDetail';
 
@@ -18,6 +19,7 @@ function App() {
   const [session, setSession] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [hasNewReports, setHasNewReports] = useState(false);
 
   const fetchProfile = async (token) => {
     try {
@@ -46,7 +48,7 @@ function App() {
 
     initSession();
 
-    // 2. Listen for changes
+    // 2. Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
       setSession(newSession);
       if (newSession) {
@@ -58,7 +60,21 @@ function App() {
       }
     });
 
-    return () => subscription.unsubscribe();
+    // 3. Real-time Notifications for new issues
+    const issuesSubscription = supabase
+      .channel('public:issues')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'issues' }, (payload) => {
+        console.log('New issue detected!', payload);
+        setHasNewReports(true);
+      })
+      .subscribe((status) => {
+        console.log("Realtime subscription status:", status);
+      });
+
+    return () => {
+      subscription.unsubscribe();
+      supabase.removeChannel(issuesSubscription);
+    };
   }, []);
 
   const handleLogout = async () => {
@@ -90,6 +106,29 @@ function App() {
               <NavLink to="/volunteer" className={({isActive}) => isActive ? "active" : ""}>
                 <HeartHandshake size={18} /> Volunteers
               </NavLink>
+              {session && (
+                <NavLink 
+                  to="/inbox" 
+                  className={({isActive}) => isActive ? "active" : ""}
+                  onClick={() => setHasNewReports(false)}
+                  style={{ position: 'relative' }}
+                >
+                  <Mail size={18} /> Inbox
+                  {hasNewReports && (
+                    <span style={{ 
+                      position: 'absolute', 
+                      top: '8px', 
+                      right: '8px', 
+                      width: '8px', 
+                      height: '8px', 
+                      background: 'var(--danger)', 
+                      borderRadius: '50%',
+                      border: '2px solid white',
+                      boxShadow: '0 0 5px rgba(231, 76, 60, 0.5)'
+                    }} />
+                  )}
+                </NavLink>
+              )}
             </nav>
           </div>
 
@@ -148,6 +187,10 @@ function App() {
             <Route 
               path="/match/:id" 
               element={session ? <VolunteerMatching /> : <Navigate to="/login" />} 
+            />
+            <Route 
+              path="/inbox" 
+              element={session ? <Inbox /> : <Navigate to="/login" />} 
             />
             <Route path="/profile" element={session ? <Profile user={session.user} onUpdate={() => fetchProfile(session.access_token)} /> : <Navigate to="/login" />} />
             <Route path="/login" element={<Login />} />

@@ -1,25 +1,28 @@
-# Byte-compiled / optimized / DLL files
+# Environments & Secrets (CRITICAL)
+.env
+.env.local
+.env.*
+**/.env
+**/.env.*
+
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
-
-# Environments
 .venv/
 venv/
 ENV/
 env/
-.env
-.env.local
-.env.development.local
-.env.test.local
-.env.production.local
+backend/venv/
+.pytest_cache/
 
 # Node / Frontend
 node_modules/
+frontend/node_modules/
 dist/
 dist-ssr/
-*.local
 .eslintcache
+.vite/
 
 # Logs
 *.log
@@ -37,6 +40,10 @@ Thumbs.db
 *.swp
 *.swo
 
-# Project specific
-backend/test_api.py
+# Scratch & Utility Scripts
+backend/check_models.py
+backend/hi.py
 backend/seed_volunteers.py
+backend/test_api.py
+backend/schema.sql
+frontend/envexample

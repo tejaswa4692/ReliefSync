@@ -1,38 +1,30 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useParams, NavLink } from 'react-router-dom';
 import axios from 'axios';
-import { MapPin, UserCheck, Zap, Activity, AlertCircle } from 'lucide-react';
+import { MapPin, UserCheck, Zap, Activity, AlertCircle, ArrowLeft } from 'lucide-react';
 
 const API_URL = 'http://localhost:8000';
 
 export default function VolunteerMatching() {
-  const [searchParams] = useSearchParams();
-  const issueId = searchParams.get('issue');
+  const { id } = useParams();
   
-  const [issues, setIssues] = useState([]);
-  const [selectedIssue, setSelectedIssue] = useState(issueId || '');
   const [matchData, setMatchData] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
   const [isAssigned, setIsAssigned] = useState(false);
 
   useEffect(() => {
-    // Fetch issues for dropdown
-    axios.get(`${API_URL}/issues`).then(res => setIssues(res.data)).catch(console.error);
-  }, []);
-
-  useEffect(() => {
-    if (selectedIssue) {
-      fetchMatches(selectedIssue);
+    if (id) {
+      fetchMatches(id);
     }
-  }, [selectedIssue]);
+  }, [id]);
 
-  const fetchMatches = async (id) => {
+  const fetchMatches = async (mid) => {
     setLoading(true);
     setMatchData(null);
     try {
       const token = localStorage.getItem('rs_token');
-      const res = await axios.get(`${API_URL}/match/${id}`, {
+      const res = await axios.get(`${API_URL}/match/${mid}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setMatchData(res.data);
@@ -41,9 +33,9 @@ export default function VolunteerMatching() {
       const assignments = await axios.get(`${API_URL}/assignments/me`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setIsAssigned(assignments.data.some(a => a.issue_id === parseInt(id)));
+      setIsAssigned(assignments.data.some(a => a.issue_id === parseInt(mid)));
     } catch (error) {
-      console.error(error);
+      console.error("Fetch Matches Error:", error);
     }
     setLoading(false);
   };
@@ -53,13 +45,14 @@ export default function VolunteerMatching() {
     try {
       const token = localStorage.getItem('rs_token');
       await axios.post(`${API_URL}/assignments`, 
-        { issue_id: parseInt(selectedIssue) },
+        { issue_id: parseInt(id) },
         { headers: { Authorization: `Bearer ${token}` } }
       );
       setIsAssigned(true);
-      fetchMatches(selectedIssue);
+      fetchMatches(id);
     } catch (err) {
       console.error(err);
+      alert("Error joining mission.");
     } finally {
       setJoining(false);
     }
@@ -70,55 +63,27 @@ export default function VolunteerMatching() {
                          matchData?.impact_prediction?.short_term_consequences?.[0]?.includes('unavailable');
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-        <div>
-          <h2 style={{ margin: 0 }}>Volunteer Matching & Impact</h2>
-          <p style={{ color: 'var(--text-light)', marginTop: '0.25rem' }}>AI-driven dispatch and coordination system</p>
-        </div>
-        
-        <select 
-          className="form-control" 
-          style={{ width: '300px' }}
-          value={selectedIssue}
-          onChange={(e) => setSelectedIssue(e.target.value)}
-        >
-          <option value="">-- Select an Issue --</option>
-          {issues.map(iss => (
-            <option key={iss.id} value={iss.id}>{iss.issue_type} in {iss.location}</option>
-          ))}
-        </select>
+    <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
+      <div style={{ marginBottom: '2rem' }}>
+        <NavLink to="/" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', color: 'var(--primary)', fontWeight: 600, marginBottom: '1rem' }}>
+          <ArrowLeft size={18} /> Back to Command Center
+        </NavLink>
+        <h2 style={{ margin: 0 }}>Mission Dispatch Intelligence</h2>
+        <p style={{ color: 'var(--text-light)', marginTop: '0.25rem' }}>AI-driven crisis analysis and responder coordination</p>
       </div>
-
-      {isAiUnavailable && (
-        <div className="card" style={{ background: 'rgba(231, 76, 60, 0.1)', border: '1px solid var(--danger)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <AlertCircle color="var(--danger)" />
-          <div style={{ fontSize: '0.9rem', color: 'var(--text)' }}>
-            <strong>AI Service Busy:</strong> Impact predictions are currently unavailable due to high demand. Standard protocols are active.
-          </div>
-        </div>
-      )}
-
-      {!selectedIssue && (
-        <div className="card" style={{ textAlign: 'center', padding: '3rem' }}>
-          <UserCheck size={48} color="var(--secondary)" style={{ marginBottom: '1rem' }} />
-          <h3>Select an issue to find matches</h3>
-          <p style={{ color: 'var(--text-light)' }}>
-            Our AI will predict the impact and find the best skilled volunteers nearby.
-          </p>
-        </div>
-      )}
 
       {loading && (
         <div style={{ textAlign: 'center', padding: '3rem' }}>
-          <div className="skeleton" style={{ height: '300px', width: '100%' }}></div>
+          <div className="skeleton" style={{ height: '400px', width: '100%' }}></div>
         </div>
       )}
 
-      {!loading && selectedIssue && !matchData && (
-        <div className="card" style={{ textAlign: 'center', padding: '2rem', border: '1px dashed var(--danger)' }}>
-          <p style={{ color: 'var(--danger)' }}>Failed to load match data. Please ensure you are logged in correctly.</p>
-          <button className="btn btn-primary" onClick={() => fetchMatches(selectedIssue)}>Retry</button>
+      {!loading && !matchData && (
+        <div className="card" style={{ textAlign: 'center', padding: '3rem', border: '1px dashed var(--danger)' }}>
+          <AlertCircle size={48} color="var(--danger)" style={{ marginBottom: '1rem' }} />
+          <h3 style={{ color: 'var(--danger)' }}>Intelligence Feed Unavailable</h3>
+          <p style={{ color: 'var(--text-light)' }}>We couldn't retrieve the analysis for this mission. Standard protocols are advised.</p>
+          <NavLink to="/" className="btn btn-primary" style={{ marginTop: '1.5rem' }}>Return to Command Center</NavLink>
         </div>
       )}
 

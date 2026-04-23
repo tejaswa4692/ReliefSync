@@ -486,12 +486,80 @@ async def create_assignment(req: AssignmentRequest, user = Depends(get_current_u
     
     return {"message": "Assigned successfully", "assignment": res.data[0]}
 
+@app.get("/inbox")
+async def get_volunteer_inbox(user = Depends(get_current_user)):
+    """Personalized inbox for volunteers based on location and skills."""
+    if not supabase:
+        return []
+        
+    # 1. Get Volunteer Info
+    vol_res = supabase.table("volunteers").select("*").eq("id", user.id).single().execute()
+    if not vol_res.data:
+        raise HTTPException(status_code=404, detail="Volunteer profile not found")
+    volunteer = vol_res.data
+    
+    # 2. Get All Open Issues
+    issues_res = supabase.table("issues").select("*").order("created_at", desc=True).limit(50).execute()
+    issues = issues_res.data
+    
+    # 3. Get existing assignments (to exclude)
+    assign_res = supabase.table("assignments").select("issue_id").eq("volunteer_id", user.id).execute()
+    assigned_ids = [a['issue_id'] for a in assign_res.data]
+    
+    inbox_items = []
+    
+    vol_loc = (volunteer.get('location') or "").lower()
+    vol_skills = [s.lower() for s in (volunteer.get('skills') or [])]
+    
+    for issue in issues:
+        if issue['id'] in assigned_ids:
+            continue
+            
+        score = 0
+        match_reasons = []
+        
+        # A. Location Match
+        iss_loc = (issue.get('location') or "").lower()
+        if vol_loc and (vol_loc in iss_loc or iss_loc in vol_loc):
+            score += 50
+            match_reasons.append("Nearby Location")
+            
+        # B. Skill Match
+        iss_type = (issue.get('issue_type') or "").lower()
+        iss_summary = (issue.get('summary') or "").lower()
+        for skill in vol_skills:
+            if skill in iss_type or skill in iss_summary:
+                score += 30
+                match_reasons.append(f"Skill Match: {skill}")
+                break
+                
+        # C. Severity Bonus
+        score += (issue.get('severity', 1) * 5)
+        
+        # ADDED: Always show all unassigned issues, just rank them
+        inbox_items.append({
+            "id": issue['id'],
+            "issue_type": issue['issue_type'],
+            "location": issue['location'],
+            "severity": issue['severity'],
+            "urgency": issue['urgency'],
+            "summary": issue['summary'],
+            "match_score": score,
+            "reasons": match_reasons if match_reasons else ["General Assistance"]
+        })
+            
+    # Sort by highest score
+    inbox_items.sort(key=lambda x: x['match_score'], reverse=True)
+    
+    return inbox_items
+
 @app.get("/assignments/me")
 async def get_my_assignments(user = Depends(get_current_user)):
     """Get all assignments for the current volunteer."""
+    if not supabase:
+        return []
     res = supabase.table("assignments").select("*, issues(*)").eq("volunteer_id", user.id).execute()
     return res.data
 
 if __name__ == "__main__":
-    # Start the server
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

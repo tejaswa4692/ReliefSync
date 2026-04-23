@@ -37,9 +37,17 @@ export default function VolunteerDetail() {
         {/* Left Column: Profile Card */}
         <div>
           <div className="card" style={{ textAlign: 'center', position: 'relative' }}>
-            <div style={{ width: '100px', height: '100px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '3rem', margin: '0 auto 1.5rem auto' }}>
-              {profile.name[0].toUpperCase()}
-            </div>
+            {profile.avatar_url ? (
+              <img 
+                src={profile.avatar_url} 
+                alt={profile.name} 
+                style={{ width: '100px', height: '100px', borderRadius: '50%', border: '4px solid var(--primary)', objectFit: 'cover', margin: '0 auto 1.5rem auto' }}
+              />
+            ) : (
+              <div style={{ width: '100px', height: '100px', borderRadius: '50%', background: 'var(--primary)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, fontSize: '3rem', margin: '0 auto 1.5rem auto' }}>
+                {profile.name[0].toUpperCase()}
+              </div>
+            )}
             
             <h2 style={{ margin: '0 0 0.5rem 0' }}>{profile.name}</h2>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem', color: 'var(--text-light)', fontSize: '0.9rem', marginBottom: '1.5rem' }}>
