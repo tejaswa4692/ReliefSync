@@ -59,14 +59,4 @@ npm run dev
 
 Open `http://localhost:5173` in your browser.
 
-## Hackathon Demo Steps
-1. Navigate to the **Submit Report** tab.
-2. Paste unstructured text like: *"Massive flooding near the south river bank. Water rising fast. 10 families stranded without power."*
-3. Watch the system instantly structure it.
-4. Go to the **Dashboard** to see the issue listed. Submitting multiple reports in the same location will trigger a **Crisis Spike Alert**.
-5. Navigate to the **Volunteers** tab and select the new issue.
-6. Observe the Gemini **AI Impact Prediction** and the matched volunteers.
-
----
-
 *Focus on Clarity, Speed, and Hackathon Usability.*
