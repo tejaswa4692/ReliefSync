@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Mail, MapPin, ShieldAlert, CheckCircle, Clock, Zap, ArrowRight } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export default function Inbox() {
   const [items, setItems] = useState([]);

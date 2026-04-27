@@ -4,7 +4,7 @@ import axios from 'axios';
 import { UserPlus, Mail, Lock, User, MapPin, Tag, Phone } from 'lucide-react';
 import { supabase } from '../supabase';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export default function Signup() {
   const [formData, setFormData] = useState({

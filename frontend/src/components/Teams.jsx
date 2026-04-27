@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { Users, Plus, Upload, Loader, Image as ImageIcon } from 'lucide-react';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY;
 
 function Teams() {

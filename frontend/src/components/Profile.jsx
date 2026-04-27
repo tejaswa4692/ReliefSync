@@ -3,7 +3,7 @@ import axios from 'axios';
 import { User, MapPin, Tag, Save, CheckCircle, Mail, Activity, ShieldAlert, Loader2, Camera, Users, Phone } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY; 
 
 export default function Profile({ user, onUpdate }) {

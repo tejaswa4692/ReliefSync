@@ -3,7 +3,7 @@ import { useParams, NavLink } from 'react-router-dom';
 import axios from 'axios';
 import { MapPin, Tag, Activity, ArrowLeft, Mail, ShieldCheck, Users, Phone } from 'lucide-react';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export default function VolunteerDetail() {
   const { id } = useParams();

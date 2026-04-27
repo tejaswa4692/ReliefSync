@@ -3,7 +3,7 @@ import axios from 'axios';
 import { NavLink } from 'react-router-dom';
 import { Users, MapPin, ChevronRight, Search, Loader2 } from 'lucide-react';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const PAGE_SIZE = 20;
 
 export default function VolunteersList() {

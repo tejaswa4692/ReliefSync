@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { Users, UserPlus, ArrowLeft, Shield, MapPin, Loader, CheckCircle } from 'lucide-react';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 function TeamDetail({ user }) {
   const { id } = useParams();

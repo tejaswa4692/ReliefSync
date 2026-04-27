@@ -3,7 +3,7 @@ import axios from 'axios';
 import { AlertTriangle, Users, MapPin, Activity } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
 
-const API_URL = 'http://localhost:8000';
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export default function Dashboard() {
   const [issues, setIssues] = useState([]);
