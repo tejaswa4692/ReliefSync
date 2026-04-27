@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { User, MapPin, Tag, Save, CheckCircle, Mail, Activity, ShieldAlert, Loader2, Camera } from 'lucide-react';
+import { User, MapPin, Tag, Save, CheckCircle, Mail, Activity, ShieldAlert, Loader2, Camera, Users, Phone } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 const API_URL = 'http://localhost:8000';
 const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY; 
@@ -11,9 +12,11 @@ export default function Profile({ user, onUpdate }) {
     location: '',
     skills: '',
     availability: true,
-    avatar_url: ''
+    avatar_url: '',
+    phone_number: ''
   });
   const [assignments, setAssignments] = useState([]);
+  const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -21,7 +24,7 @@ export default function Profile({ user, onUpdate }) {
 
   useEffect(() => {
     const init = async () => {
-      await Promise.all([fetchProfile(), fetchAssignments()]);
+      await Promise.all([fetchProfile(), fetchAssignments(), fetchTeams()]);
       setLoading(false);
     };
     init();
@@ -38,7 +41,8 @@ export default function Profile({ user, onUpdate }) {
         location: res.data.location || '',
         skills: (res.data.skills || []).join(', '),
         availability: res.data.availability === true,
-        avatar_url: res.data.avatar_url || ''
+        avatar_url: res.data.avatar_url || '',
+        phone_number: res.data.phone_number || ''
       });
     } catch (err) {
       console.error("Profile fetch error:", err);
@@ -54,6 +58,18 @@ export default function Profile({ user, onUpdate }) {
       setAssignments(res.data || []);
     } catch (err) {
       console.error("Assignments fetch error:", err);
+    }
+  };
+
+  const fetchTeams = async () => {
+    const token = localStorage.getItem('rs_token');
+    try {
+      const res = await axios.get(`${API_URL}/users/me/teams`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setTeams(res.data || []);
+    } catch (err) {
+      console.error("Teams fetch error:", err);
     }
   };
 
@@ -134,8 +150,8 @@ export default function Profile({ user, onUpdate }) {
 
       {/* Profile Info Card */}
       <div className="card">
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+        <div className="flex-responsive" style={{ justifyContent: 'space-between', marginBottom: '2rem', width: '100%' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
             <div style={{ position: 'relative' }}>
               {(formData.avatar_url || user?.user_metadata?.avatar_url) ? (
                 <img 
@@ -175,8 +191,9 @@ export default function Profile({ user, onUpdate }) {
             </div>
           </div>
 
-          <div style={{ textAlign: 'right' }}>
-            <div style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginBottom: '0.5rem', fontWeight: 700 }}>AVAILABILITY</div>
+          <div className="header-actions" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%' }}>
+            <div style={{ textAlign: 'left' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-light)', marginBottom: '0.5rem', fontWeight: 700 }}>AVAILABILITY</div>
             <div 
               onClick={toggleAvailability}
               style={{ 
@@ -202,9 +219,10 @@ export default function Profile({ user, onUpdate }) {
             </div>
           </div>
         </div>
+      </div>
 
         <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-          <div className="grid">
+          <div className="grid grid-cols-2">
             <div>
               <label className="form-label">Full Name</label>
               <input 
@@ -239,6 +257,17 @@ export default function Profile({ user, onUpdate }) {
             />
           </div>
 
+          <div>
+            <label className="form-label">Phone Number (Optional)</label>
+            <input 
+              type="tel" 
+              className="form-control"
+              value={formData.phone_number}
+              onChange={(e) => setFormData({...formData, phone_number: e.target.value})}
+              placeholder="+1 234 567 8900"
+            />
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <button type="submit" className="btn btn-primary" disabled={saving || uploading}>
               {saving ? 'Saving...' : <><Save size={18} /> Save Changes</>}
@@ -254,7 +283,7 @@ export default function Profile({ user, onUpdate }) {
         {assignments.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
             {assignments.map(a => (
-              <div key={a.id} style={{ padding: '1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', display: 'flex', justifyContent: 'space-between' }}>
+              <div key={a.id} className="card-header" style={{ padding: '1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 0 }}>
                 <div>
                   <strong>{a.issues?.issue_type}</strong>
                   <div style={{ fontSize: '0.85rem', color: 'var(--text-light)' }}>{a.issues?.location}</div>
@@ -265,6 +294,37 @@ export default function Profile({ user, onUpdate }) {
           </div>
         ) : (
           <p style={{ color: 'var(--text-light)' }}>No active missions.</p>
+        )}
+      </div>
+
+      {/* Teams */}
+      <div className="card">
+        <h3><Users size={20} /> My Teams</h3>
+        {teams.length > 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {teams.map(t => (
+              <div key={t.id} className="card-header" style={{ padding: '1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                  {t.image_url ? (
+                    <img src={t.image_url} alt={t.name} style={{ width: '40px', height: '40px', borderRadius: '4px', objectFit: 'cover' }} />
+                  ) : (
+                    <div style={{ width: '40px', height: '40px', borderRadius: '4px', background: 'var(--bg-dark)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Users size={20} color="var(--primary)" />
+                    </div>
+                  )}
+                  <div>
+                    <strong><Link to={`/teams/${t.id}`} style={{ color: 'inherit', textDecoration: 'none' }}>{t.name}</Link></strong>
+                    {t.leader_id === user?.id && <span style={{ fontSize: '0.75rem', color: 'var(--warning)', marginLeft: '0.5rem' }}>★ Leader</span>}
+                  </div>
+                </div>
+                <span className={`badge badge-${t.is_approved ? 'low' : 'medium'}`}>
+                  {t.is_approved ? 'Approved' : 'Pending'}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ color: 'var(--text-light)' }}>You are not in any teams.</p>
         )}
       </div>
     </div>

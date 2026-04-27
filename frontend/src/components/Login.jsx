@@ -90,7 +90,7 @@ export default function Login() {
           />
         </div>
 
-        <button type="submit" className="btn btn-primary" disabled={loading} style={{ marginTop: '1rem' }}>
+        <button type="submit" className="btn btn-primary btn-full" disabled={loading} style={{ marginTop: '1rem' }}>
           {loading ? 'Logging in...' : 'Sign In'}
         </button>
 

@@ -42,13 +42,13 @@ export default function Dashboard() {
         <div style={{ marginBottom: '3rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
             <div style={{ width: '12px', height: '12px', borderRadius: '50%', background: 'var(--danger)', animation: 'pulse 2s infinite' }}></div>
-            <h3 style={{ margin: 0, color: 'var(--danger)', fontSize: '1.2rem', fontWeight: 800 }}>AI EMERGENCY DETECTION</h3>
+            <h3 style={{ margin: 0, color: 'var(--danger)', fontSize: '1.2rem', fontWeight: 800 }}>EMERGENCY DETECTION</h3>
           </div>
           
           <div className="grid grid-cols-2">
             {alerts.map((alert, idx) => (
               <div key={idx} className="card" style={{ border: '2px solid var(--danger)', background: 'rgba(231, 76, 60, 0.03)' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+                <div className="card-header" style={{ marginBottom: '1rem', padding: 0, border: 'none' }}>
                   <div style={{ fontWeight: 800, fontSize: '1.1rem', color: 'var(--text)' }}>
                     {alert.issue_type} Alert: <span style={{ color: 'var(--danger)' }}>{alert.location}</span>
                   </div>
@@ -58,7 +58,7 @@ export default function Dashboard() {
                 </div>
                 
                 <p style={{ fontSize: '0.9rem', lineHeight: '1.5', margin: '0 0 1rem 0' }}>
-                  Our AI detected an unusual surge of <strong>{alert.current_count}</strong> reports in this area. 
+                  System detected an unusual surge of <strong>{alert.current_count}</strong> reports in this area. 
                   This is <strong>{alert.spike_score} times higher</strong> than the normal daily average of {alert.baseline_avg}.
                 </p>
                 
@@ -77,14 +77,30 @@ export default function Dashboard() {
           <div key={issue.id} className="card">
             <div className="card-header">
               <h4 className="card-title">{issue.issue_type}</h4>
-              <span className={`badge badge-${issue.urgency}`}>
-                {issue.urgency} Priority
-              </span>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <span className={`badge badge-${issue.urgency}`}>
+                  {issue.urgency} Priority
+                </span>
+                {issue.is_resolved && (
+                  <span className="badge" style={{ background: 'var(--success)', color: 'white' }}>
+                    Resolved
+                  </span>
+                )}
+              </div>
             </div>
             
             <p style={{ fontSize: '0.9rem', color: 'var(--text-light)', marginBottom: '1rem' }}>
               {issue.summary}
             </p>
+
+            {issue.recommended_procedure && (
+              <div style={{ marginBottom: '1rem', padding: '0.75rem', background: 'rgba(255, 255, 255, 0.05)', borderRadius: 'var(--radius)', borderLeft: '3px solid var(--secondary)' }}>
+                <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.8rem', color: 'var(--text)', textTransform: 'uppercase' }}>Recommended Procedure</h5>
+                <p style={{ fontSize: '0.85rem', color: 'var(--text-light)', margin: 0, whiteSpace: 'pre-wrap' }}>
+                  {issue.recommended_procedure}
+                </p>
+              </div>
+            )}
             
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', fontSize: '0.875rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -99,7 +115,7 @@ export default function Dashboard() {
             </div>
             
             <div style={{ marginTop: '1.5rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
-              <NavLink to={`/match/${issue.id}`} className="btn btn-primary" style={{ width: '100%', textDecoration: 'none', textAlign: 'center', display: 'block' }}>
+              <NavLink to={`/match/${issue.id}`} className="btn btn-primary btn-full" style={{ textDecoration: 'none' }}>
                 Analyze & Match Volunteers
               </NavLink>
             </div>

@@ -54,7 +54,7 @@ export default function ReportForm() {
           ></textarea>
         </div>
         
-        <button type="submit" className="btn btn-primary" disabled={loading} style={{ width: '100%' }}>
+        <button type="submit" className="btn btn-primary btn-full" disabled={loading}>
           {loading ? 'AI is processing...' : <><Send size={18} /> Process this report</>}
         </button>
       </form>

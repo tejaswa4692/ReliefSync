@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react
 import { Activity, ShieldAlert, HeartHandshake, Send, LogIn, LogOut, Mail, User as UserIcon } from 'lucide-react';
 import axios from 'axios';
 import { supabase } from './supabase';
+import Home from './components/Home';
 import Dashboard from './components/Dashboard';
 import ReportForm from './components/ReportForm';
 import VolunteerMatching from './components/VolunteerMatching';
@@ -12,6 +13,8 @@ import Profile from './components/Profile';
 import Inbox from './components/Inbox';
 import VolunteersList from './components/VolunteersList';
 import VolunteerDetail from './components/VolunteerDetail';
+import Teams from './components/Teams';
+import TeamDetail from './components/TeamDetail';
 
 const API_URL = 'http://localhost:8000';
 
@@ -91,13 +94,13 @@ function App() {
     <Router>
       <div className="app">
         <header>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+          <div className="flex-responsive">
             <NavLink to="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-              <Activity size={28} color="var(--primary)" />
-              <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em' }}>ReliefSync</h1>
+              <Activity size={28} color="var(--primary)" style={{ flexShrink: 0 }} />
+              <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1, display: 'flex', alignItems: 'center' }}>ReliefSync</h1>
             </NavLink>
             <nav>
-              <NavLink to="/" className={({isActive}) => isActive ? "active" : ""}>
+              <NavLink to="/dashboard" className={({isActive}) => isActive ? "active" : ""}>
                 <ShieldAlert size={18} /> Dashboard
               </NavLink>
               <NavLink to="/report" className={({isActive}) => isActive ? "active" : ""}>
@@ -105,6 +108,9 @@ function App() {
               </NavLink>
               <NavLink to="/volunteer" className={({isActive}) => isActive ? "active" : ""}>
                 <HeartHandshake size={18} /> Volunteers
+              </NavLink>
+              <NavLink to="/teams" className={({isActive}) => isActive ? "active" : ""}>
+                <UserIcon size={18} /> Teams
               </NavLink>
               {session && (
                 <NavLink 
@@ -132,16 +138,16 @@ function App() {
             </nav>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+          <div className="header-actions" style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
             {session?.user ? (
               <>
                 <NavLink to="/profile" style={{ textDecoration: 'none', color: 'inherit' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', cursor: 'pointer' }}>
-                    <div style={{ textAlign: 'right', fontSize: '0.85rem' }}>
-                      <div style={{ fontWeight: 600, color: 'var(--primary)' }}>
+                    <div style={{ textAlign: 'right', fontSize: '0.85rem', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+                      <div style={{ fontWeight: 600, color: 'var(--primary)', lineHeight: 1.2 }}>
                         {profile?.name || session.user.user_metadata?.full_name || session.user.email?.split('@')[0] || 'Volunteer'}
                       </div>
-                      <div style={{ color: 'var(--text-light)', fontSize: '0.75rem' }}>
+                      <div style={{ color: 'var(--text-light)', fontSize: '0.75rem', marginTop: '2px' }} className="hide-on-mobile">
                         {profile?.location || 'New Volunteer'}
                       </div>
                     </div>
@@ -161,10 +167,10 @@ function App() {
                 <button 
                   onClick={() => supabase.auth.signOut()}
                   className="btn"
-                  style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'transparent', color: 'var(--danger)', padding: '0.5rem' }}
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', color: 'var(--danger)', padding: '0.5rem', border: 'none', height: '40px', width: '40px' }}
                   title="Logout"
                 >
-                  <LogOut size={20} />
+                  <LogOut size={22} />
                 </button>
               </>
             ) : (
@@ -177,7 +183,8 @@ function App() {
 
         <main className="container">
           <Routes>
-            <Route path="/" element={<Dashboard />} />
+            <Route path="/" element={<Home />} />
+            <Route path="/dashboard" element={<Dashboard />} />
             <Route 
               path="/report" 
               element={session ? <ReportForm /> : <Navigate to="/login" />} 
@@ -193,6 +200,8 @@ function App() {
               element={session ? <Inbox /> : <Navigate to="/login" />} 
             />
             <Route path="/profile" element={session ? <Profile user={session.user} onUpdate={() => fetchProfile(session.access_token)} /> : <Navigate to="/login" />} />
+            <Route path="/teams" element={<Teams />} />
+            <Route path="/teams/:id" element={<TeamDetail user={session?.user} />} />
             <Route path="/login" element={<Login />} />
             <Route path="/signup" element={<Signup />} />
           </Routes>

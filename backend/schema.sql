@@ -9,6 +9,8 @@ CREATE TABLE issues (
     location VARCHAR(255),
     people_affected INTEGER,
     summary TEXT,
+    recommended_procedure TEXT,
+    is_resolved BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -28,6 +30,7 @@ CREATE TABLE volunteers (
     location TEXT NOT NULL,
     skills TEXT[] DEFAULT '{}',
     availability TEXT DEFAULT 'available',
+    phone_number TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -58,3 +61,27 @@ CREATE POLICY "Users can insert their own profile" ON volunteers
 
 CREATE POLICY "Users can update their own profile" ON volunteers
     FOR UPDATE USING (auth.uid() = id);
+
+-- 5. Teams table
+CREATE TABLE teams (
+    id SERIAL PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    image_url VARCHAR(255),
+    leader_id UUID REFERENCES volunteers(id),
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+-- 6. Team Members table
+CREATE TABLE team_members (
+    id SERIAL PRIMARY KEY,
+    team_id INTEGER REFERENCES teams(id) ON DELETE CASCADE,
+    volunteer_id UUID REFERENCES volunteers(id) ON DELETE CASCADE,
+    is_approved BOOLEAN DEFAULT FALSE,
+    joined_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE(team_id, volunteer_id)
+);
+
+-- Indexes for teams
+CREATE INDEX idx_team_members_team_id ON team_members(team_id);
+CREATE INDEX idx_team_members_volunteer_id ON team_members(volunteer_id);

@@ -57,13 +57,13 @@ export default function VolunteersList() {
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
+      <div className="flex-responsive" style={{ justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <div>
           <h2 style={{ margin: 0, fontSize: '1.8rem' }}>Volunteer Force</h2>
           <p style={{ color: 'var(--text-light)', marginTop: '0.25rem' }}>Search through our network of {volunteers.length}+ responders</p>
         </div>
         
-        <div style={{ position: 'relative', width: '300px' }}>
+        <div className="search-container" style={{ position: 'relative', width: '300px' }}>
           <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-light)' }} />
           <input 
             className="form-control"
@@ -106,15 +106,15 @@ export default function VolunteersList() {
                 </div>
               </div>
 
-              <div style={{ display: 'none', flex: 1, gap: '0.5rem', flexWrap: 'wrap' }} className="desktop-only">
+              <div className="desktop-only" style={{ flex: 1, gap: '0.5rem', flexWrap: 'wrap' }}>
                 {(vol.skills || []).slice(0, 2).map((s, i) => (
                   <span key={i} className="badge" style={{ fontSize: '0.7rem', background: 'var(--border)', color: 'var(--text)' }}>{s}</span>
                 ))}
               </div>
 
-              <div style={{ textAlign: 'right', minWidth: '120px' }}>
+              <div style={{ textAlign: 'right', minWidth: '80px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.5rem', fontSize: '0.8rem', fontWeight: 700, color: vol.availability ? 'var(--success)' : 'var(--text-light)' }}>
-                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: vol.availability ? 'var(--success)' : '#bdc3c7' }} />
+                  <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: vol.availability ? 'var(--success)' : '#bdc3c7' }} className="hide-on-mobile" />
                   {vol.availability ? 'Active' : 'Off Duty'}
                 </div>
               </div>

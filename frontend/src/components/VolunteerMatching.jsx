@@ -58,6 +58,23 @@ export default function VolunteerMatching() {
     }
   };
 
+  const handleResolveIssue = async () => {
+    if (!window.confirm("Are you sure you want to mark this issue as completely resolved?")) return;
+    
+    try {
+      const token = localStorage.getItem('rs_token');
+      await axios.post(`${API_URL}/issues/${id}/resolve`, 
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert("Issue marked as resolved successfully!");
+      fetchMatches(id);
+    } catch (err) {
+      console.error(err);
+      alert("Error resolving mission. You must be signed in.");
+    }
+  };
+
   // Check if Gemini is unavailable
   const isAiUnavailable = matchData?.impact_prediction?.impact_level === 'unknown' || 
                          matchData?.impact_prediction?.short_term_consequences?.[0]?.includes('unavailable');
@@ -90,28 +107,50 @@ export default function VolunteerMatching() {
       {!loading && matchData && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
           {/* Header Action Card */}
-          <div className="card" style={{ background: 'var(--primary)', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="card flex-responsive" style={{ background: 'var(--primary)', color: 'white', justifyContent: 'space-between' }}>
             <div>
               <h3 style={{ margin: 0 }}>Respond to {matchData.issue?.issue_type}</h3>
               <p style={{ margin: '0.5rem 0 0 0', opacity: 0.9 }}>{matchData.issue?.location} • Severity {matchData.issue?.severity}/5</p>
             </div>
-            {isAssigned ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.2)', padding: '0.75rem 1.5rem', borderRadius: 'var(--radius)' }}>
-                <UserCheck size={20} /> You are signed up!
+            {matchData.issue?.is_resolved ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'var(--success)', color: 'white', padding: '0.75rem 1.5rem', borderRadius: 'var(--radius)' }}>
+                <UserCheck size={20} /> Mission Resolved
+              </div>
+            ) : isAssigned ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', background: 'rgba(255,255,255,0.2)', padding: '0.75rem 1.5rem', borderRadius: 'var(--radius)' }}>
+                  <UserCheck size={20} /> You are signed up!
+                </div>
+                <button 
+                  className="btn" 
+                  onClick={handleResolveIssue}
+                  style={{ background: 'var(--success)', color: 'white', fontWeight: 600, border: '1px solid rgba(255,255,255,0.5)' }}
+                >
+                  Mark as Resolved
+                </button>
               </div>
             ) : (
-              <button 
-                className="btn" 
-                onClick={handleJoinEffort}
-                disabled={joining}
-                style={{ background: 'white', color: 'var(--primary)', fontWeight: 600 }}
-              >
-                {joining ? 'Joining...' : 'I want to help'}
-              </button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <button 
+                  className="btn" 
+                  onClick={handleJoinEffort}
+                  disabled={joining}
+                  style={{ background: 'white', color: 'var(--primary)', fontWeight: 600 }}
+                >
+                  {joining ? 'Joining...' : 'I want to help'}
+                </button>
+                <button 
+                  className="btn" 
+                  onClick={handleResolveIssue}
+                  style={{ background: 'transparent', color: 'white', fontWeight: 600, border: '1px solid rgba(255,255,255,0.5)' }}
+                >
+                  Mark as Resolved
+                </button>
+              </div>
             )}
           </div>
 
-          <div className="grid" style={{ gridTemplateColumns: '1fr 2fr' }}>
+          <div className="grid grid-cols-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))' }}>
             {/* AI Impact Prediction */}
             <div className="card" style={{ borderTop: '4px solid var(--primary)' }}>
               <h3 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -141,6 +180,15 @@ export default function VolunteerMatching() {
                     {matchData.impact_prediction.recommended_action}
                   </p>
                 </div>
+
+                {matchData.issue?.recommended_procedure && (
+                  <div style={{ marginTop: '0.5rem' }}>
+                    <div className="form-label">Detailed Procedure</div>
+                    <p style={{ margin: 0, fontSize: '0.9rem', fontWeight: 500, whiteSpace: 'pre-wrap', color: 'var(--text-light)' }}>
+                      {matchData.issue.recommended_procedure}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -172,7 +220,7 @@ export default function VolunteerMatching() {
                 {matchData.best_matches?.length > 0 ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     {matchData.best_matches.map(vol => (
-                      <div key={vol.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'rgba(255,255,255,0.5)' }}>
+                      <div key={vol.id} className="card-header" style={{ padding: '1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', background: 'rgba(255,255,255,0.5)', marginBottom: 0 }}>
                         <div>
                           <h4 style={{ margin: '0 0 0.5rem 0' }}>{vol.name}</h4>
                           <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem', color: 'var(--text-light)' }}>

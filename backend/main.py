@@ -54,6 +54,7 @@ class SignupRequest(BaseModel):
     name: str
     location: str
     skills: list[str]
+    phone_number: str = None
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -65,9 +66,18 @@ class ProfileUpdate(BaseModel):
     skills: list[str]
     availability: bool = True
     avatar_url: str = None
+    phone_number: str = None
 
 class AssignmentRequest(BaseModel):
     issue_id: int
+
+class TeamCreate(BaseModel):
+    name: str
+    description: str = None
+    image_url: str = None
+
+class TeamJoin(BaseModel):
+    team_id: int
 
 async def get_current_user(authorization: str = Header(None)):
     """Dependency to verify Supabase JWT and return user info."""
@@ -90,14 +100,16 @@ def process_report_with_gemini(content: str):
         raise Exception("Gemini model not configured")
     
     prompt = f"""
-    Analyze the following disaster/crisis report and extract structured data.
+    Analyze the following disaster/crisis report (which may be in any language) and extract structured data.
+    IMPORTANT: You must translate everything to English. ALL text values in the output JSON must be in English.
     Return ONLY a raw JSON object (no markdown formatting, no comments) with the following exact keys:
     - issue_type (string, e.g., "Flood", "Medical Emergency", "Power Outage")
     - severity (integer 1-5, where 5 is most severe)
     - urgency (string: "low", "medium", or "high")
     - location (string)
     - people_affected (integer)
-    - summary (string, concise 1-2 sentence summary)
+    - summary (string, concise 1-2 sentence summary in English)
+    - recommended_procedure (string, detailed recommended step-by-step procedure to address or fix this specific issue)
     
     Report:
     {content}
@@ -111,13 +123,28 @@ def process_report_with_gemini(content: str):
     except Exception as e:
         print(f"Gemini Processing Error (likely quota): {e}")
         # Return fallback data so the app doesn't crash
+        # Improved Fallback Logic
+        issue_type = "Emergency"
+        if "flood" in content.lower(): issue_type = "Flood"
+        elif "fire" in content.lower(): issue_type = "Fire"
+        elif "medical" in content.lower(): issue_type = "Medical"
+        
+        # Simple Location Extraction Fallback
+        location = "General Area"
+        words = content.split()
+        for i, word in enumerate(words):
+            if word.lower() in ["in", "near", "at"] and i + 1 < len(words):
+                location = words[i+1].strip(".,!").capitalize()
+                break
+
         return {
-            "issue_type": "Emergency",
+            "issue_type": issue_type,
             "severity": 3,
             "urgency": "medium",
-            "location": "Determining...",
+            "location": location,
             "people_affected": 0,
-            "summary": content[:100] + "..."
+            "summary": content[:100] + "...",
+            "recommended_procedure": "1. Assess the situation.\n2. Proceed with standard emergency protocols.\n3. Await further instructions."
         }
 
 def predict_impact_with_gemini(issue_type, severity, people_affected):
@@ -138,7 +165,6 @@ def predict_impact_with_gemini(issue_type, severity, people_affected):
     - Severity: {severity}/5
     - People Affected: {people_affected}
     """
-    
     try:
         response = model.generate_content(prompt)
         text = response.text.replace('```json', '').replace('```', '').strip()
@@ -151,6 +177,48 @@ def predict_impact_with_gemini(issue_type, severity, people_affected):
             "impact_level": "unknown",
             "recommended_action": "Proceed with standard emergency protocols."
         }
+
+def run_ai_matching(issue_id, issue):
+    """Triggers AI matching for a specific issue and caches recommendations."""
+    if not model or not supabase:
+        return None
+        
+    print(f"DEBUG: Running immediate AI matching for issue {issue_id}")
+    
+    # 1. Fetch available volunteers
+    vols_res = supabase.table("volunteers").select("*").eq("availability", True).execute()
+    available_vols = vols_res.data
+    
+    if not available_vols:
+        return []
+
+    # 2. Call Gemini for ranking
+    prompt = f"""
+    Rank these {len(available_vols)} volunteers for this crisis.
+    CRISIS: {issue['issue_type']} at {issue['location']} (Severity: {issue['severity']})
+    VOLUNTEERS: {json.dumps([{ 'id': str(v['id']), 'name': v['name'], 'skills': v['skills'], 'location': v['location'] } for v in available_vols])}
+    
+    Return ONLY a JSON array: [{{"id": "uuid", "score": 0-100, "reason": "why"}}]
+    """
+    
+    try:
+        response = model.generate_content(prompt)
+        text = response.text.replace('```json', '').replace('```', '').strip()
+        rankings = json.loads(text)
+        
+        for rank in rankings:
+            # Save to SQL Cache
+            supabase.table("ai_recommendations").upsert({
+                "issue_id": issue_id,
+                "volunteer_id": rank['id'],
+                "match_score": rank['score'],
+                "reasoning": rank['reason']
+            }).execute()
+        
+        return rankings
+    except Exception as e:
+        print(f"Immediate Batch Match Error: {e}")
+        return []
 
 @app.post("/report")
 async def submit_report(report: ReportRequest):
@@ -178,10 +246,24 @@ async def submit_report(report: ReportRequest):
         "urgency": structured_data.get("urgency", "medium").lower(),
         "location": structured_data.get("location", "Unknown"),
         "people_affected": structured_data.get("people_affected", 0),
-        "summary": structured_data.get("summary", "")
+        "summary": structured_data.get("summary", ""),
+        "recommended_procedure": structured_data.get("recommended_procedure", "")
     }).execute()
     
     issue_id = issue_res.data[0]['id']
+    issue_data = issue_res.data[0]
+    
+    # 3.5 Run AI Matching and Impact Prediction immediately
+    print(f"DEBUG: Triggering AI Match for new issue {issue_id}")
+    run_ai_matching(issue_id, issue_data)
+    
+    impact = predict_impact_with_gemini(
+        issue_data["issue_type"], 
+        issue_data["severity"], 
+        issue_data["people_affected"]
+    )
+    if impact:
+        supabase.table("issues").update({"impact_prediction": impact}).eq("id", issue_id).execute()
     
     # 4. Mark raw report as processed
     supabase.table("raw_reports").update({
@@ -269,7 +351,8 @@ async def signup(req: SignupRequest):
             "id": auth_res.user.id,
             "name": req.name,
             "location": req.location,
-            "skills": req.skills
+            "skills": req.skills,
+            "phone_number": req.phone_number
         }).execute()
         
         return {"message": "User created", "user": auth_res.user, "profile": profile_res.data[0]}
@@ -307,7 +390,8 @@ async def update_me(req: ProfileUpdate, user = Depends(get_current_user)):
             "location": req.location,
             "skills": req.skills,
             "availability": req.availability,
-            "avatar_url": req.avatar_url
+            "avatar_url": req.avatar_url,
+            "phone_number": req.phone_number
         }).eq("id", user.id).execute()
         
         if not res.data:
@@ -341,9 +425,14 @@ async def get_volunteer_details(volunteer_id: str):
     # Get active missions
     assign_res = supabase.table("assignments").select("*, issues(*)").eq("volunteer_id", volunteer_id).execute()
     
+    # Get team (only approved ones)
+    team_res = supabase.table("team_members").select("*, team:teams(*)").eq("volunteer_id", volunteer_id).eq("is_approved", True).execute()
+    team = team_res.data[0]['team'] if team_res.data and team_res.data[0].get('team') else None
+    
     return {
         "profile": prof_res.data,
-        "assignments": assign_res.data
+        "assignments": assign_res.data,
+        "team": team
     }
 
 @app.post("/volunteer")
@@ -486,6 +575,18 @@ async def create_assignment(req: AssignmentRequest, user = Depends(get_current_u
     
     return {"message": "Assigned successfully", "assignment": res.data[0]}
 
+@app.post("/issues/{issue_id}/resolve")
+async def resolve_issue(issue_id: int, user = Depends(get_current_user)):
+    """Mark an issue as resolved (only by signed-in volunteers)."""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+        
+    res = supabase.table("issues").update({"is_resolved": True}).eq("id", issue_id).execute()
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Issue not found")
+        
+    return {"message": "Issue resolved successfully", "issue": res.data[0]}
+
 @app.get("/inbox")
 async def get_volunteer_inbox(user = Depends(get_current_user)):
     """Personalized inbox for volunteers based on location and skills."""
@@ -499,7 +600,7 @@ async def get_volunteer_inbox(user = Depends(get_current_user)):
     volunteer = vol_res.data
     
     # 2. Get All Open Issues
-    issues_res = supabase.table("issues").select("*").order("created_at", desc=True).limit(50).execute()
+    issues_res = supabase.table("issues").select("*").eq("is_resolved", False).order("created_at", desc=True).limit(50).execute()
     issues = issues_res.data
     
     # 3. Get existing assignments (to exclude)
@@ -544,6 +645,7 @@ async def get_volunteer_inbox(user = Depends(get_current_user)):
             "severity": issue['severity'],
             "urgency": issue['urgency'],
             "summary": issue['summary'],
+            "recommended_procedure": issue.get('recommended_procedure', ''),
             "match_score": score,
             "reasons": match_reasons if match_reasons else ["General Assistance"]
         })
@@ -560,6 +662,152 @@ async def get_my_assignments(user = Depends(get_current_user)):
         return []
     res = supabase.table("assignments").select("*, issues(*)").eq("volunteer_id", user.id).execute()
     return res.data
+
+@app.post("/teams")
+async def create_team(team: TeamCreate, user = Depends(get_current_user)):
+    """Create a new team."""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+    
+    # Insert team
+    res = supabase.table("teams").insert({
+        "name": team.name,
+        "description": team.description,
+        "image_url": team.image_url,
+        "leader_id": user.id
+    }).execute()
+    
+    team_data = res.data[0]
+    
+    # Add leader to team members
+    supabase.table("team_members").insert({
+        "team_id": team_data['id'],
+        "volunteer_id": user.id,
+        "is_approved": True
+    }).execute()
+    
+    return {"message": "Team created successfully", "team": team_data}
+
+@app.get("/teams")
+async def get_teams():
+    """Get all teams with their members count and leader info."""
+    if not supabase:
+        return []
+        
+    res = supabase.table("teams").select("*, leader:volunteers!teams_leader_id_fkey(name, avatar_url), members:team_members(count)").order("created_at", desc=True).execute()
+    return res.data
+
+@app.get("/teams/{team_id}")
+async def get_team_details(team_id: int):
+    """Get details of a specific team including its members."""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+        
+    team_res = supabase.table("teams").select("*, leader:volunteers!teams_leader_id_fkey(*)").eq("id", team_id).single().execute()
+    if not team_res.data:
+        raise HTTPException(status_code=404, detail="Team not found")
+        
+    members_res = supabase.table("team_members").select("*, volunteer:volunteers(*)").eq("team_id", team_id).eq("is_approved", True).execute()
+    
+    return {
+        "team": team_res.data,
+        "members": [m['volunteer'] for m in members_res.data if m.get('volunteer')]
+    }
+
+@app.post("/teams/join")
+async def join_team(req: TeamJoin, user = Depends(get_current_user)):
+    """Join a team."""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+        
+    # Check if user is already in ANY team (approved or pending)
+    # Since denying deletes the row, any existing row means they are in a team or pending.
+    any_team_res = supabase.table("team_members").select("id").eq("volunteer_id", user.id).execute()
+    if any_team_res.data:
+        raise HTTPException(status_code=400, detail="You can only be in one team at a time or have one pending request.")
+        
+    # Check if team exists
+    team_res = supabase.table("teams").select("id").eq("id", req.team_id).execute()
+    if not team_res.data:
+        raise HTTPException(status_code=404, detail="Team not found")
+        
+    res = supabase.table("team_members").insert({
+        "team_id": req.team_id,
+        "volunteer_id": user.id,
+        "is_approved": False
+    }).execute()
+    
+    return {"message": "Join request sent", "member": res.data[0]}
+
+@app.get("/users/me/teams")
+async def get_my_teams(user = Depends(get_current_user)):
+    """Get teams the current user is a member of or requested to join."""
+    if not supabase:
+        return []
+        
+    res = supabase.table("team_members").select("*, team:teams(*)").eq("volunteer_id", user.id).execute()
+    # We can return the status along with the team
+    teams_with_status = []
+    for m in res.data:
+        if m.get('team'):
+            team = m['team']
+            team['is_approved'] = m['is_approved']
+            teams_with_status.append(team)
+    return teams_with_status
+
+class TeamRequestResponse(BaseModel):
+    approved: bool
+
+@app.get("/teams/requests/pending")
+async def get_team_requests(user = Depends(get_current_user)):
+    """Get pending join requests for teams the user leads."""
+    if not supabase:
+        return []
+        
+    # 1. Get teams user leads
+    teams_res = supabase.table("teams").select("id, name").eq("leader_id", user.id).execute()
+    if not teams_res.data:
+        return []
+        
+    team_ids = [t['id'] for t in teams_res.data]
+    team_names = {t['id']: t['name'] for t in teams_res.data}
+    
+    # 2. Get pending requests for those teams
+    reqs_res = supabase.table("team_members").select("*, volunteer:volunteers(*)").in_("team_id", team_ids).eq("is_approved", False).execute()
+    
+    requests = []
+    for r in reqs_res.data:
+        requests.append({
+            "id": r["id"],
+            "team_id": r["team_id"],
+            "team_name": team_names.get(r["team_id"]),
+            "volunteer": r["volunteer"],
+            "joined_at": r["joined_at"]
+        })
+        
+    return requests
+
+@app.post("/teams/requests/{request_id}/respond")
+async def respond_to_team_request(request_id: int, resp: TeamRequestResponse, user = Depends(get_current_user)):
+    """Approve or deny a team join request."""
+    if not supabase:
+        raise HTTPException(status_code=500, detail="Database not configured")
+        
+    # Check if user leads the team for this request
+    req_res = supabase.table("team_members").select("*, teams(*)").eq("id", request_id).single().execute()
+    if not req_res.data:
+        raise HTTPException(status_code=404, detail="Request not found")
+        
+    if req_res.data['teams']['leader_id'] != user.id:
+        raise HTTPException(status_code=403, detail="You are not the leader of this team")
+        
+    # Update status or delete if rejected
+    if resp.approved:
+        res = supabase.table("team_members").update({"is_approved": True}).eq("id", request_id).execute()
+        return {"message": "Request approved"}
+    else:
+        res = supabase.table("team_members").delete().eq("id", request_id).execute()
+        return {"message": "Request denied"}
 
 if __name__ == "__main__":
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)

@@ -7,6 +7,7 @@ const API_URL = 'http://localhost:8000';
 
 export default function Inbox() {
   const [items, setItems] = useState([]);
+  const [teamRequests, setTeamRequests] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -16,14 +17,31 @@ export default function Inbox() {
   const fetchInbox = async () => {
     const token = localStorage.getItem('rs_token');
     try {
-      const res = await axios.get(`${API_URL}/inbox`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setItems(res.data);
+      const [inboxRes, requestsRes] = await Promise.all([
+        axios.get(`${API_URL}/inbox`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API_URL}/teams/requests/pending`, { headers: { Authorization: `Bearer ${token}` } }).catch(e => ({data: []}))
+      ]);
+      setItems(inboxRes.data);
+      setTeamRequests(requestsRes.data);
     } catch (err) {
       console.error(err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleTeamRequest = async (requestId, approved) => {
+    const token = localStorage.getItem('rs_token');
+    try {
+      await axios.post(`${API_URL}/teams/requests/${requestId}/respond`, 
+        { approved },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setTeamRequests(prev => prev.filter(req => req.id !== requestId));
+      alert(`Request ${approved ? 'approved' : 'denied'} successfully.`);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to respond to request.");
     }
   };
 
@@ -56,11 +74,52 @@ export default function Inbox() {
         </p>
       </div>
 
+      {teamRequests.length > 0 && (
+        <div style={{ marginBottom: '3rem' }}>
+          <h3 style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem', marginBottom: '1rem' }}>Team Join Requests</h3>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+            {teamRequests.map(req => (
+              <div key={req.id} className="card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
+                <div>
+                  <div style={{ fontWeight: 600 }}>{req.volunteer.name}</div>
+                  <div style={{ fontSize: '0.85rem', color: 'var(--text-light)' }}>
+                    Wants to join <strong>{req.team_name}</strong>
+                  </div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-light)', marginTop: '0.25rem' }}>
+                    Skills: {(req.volunteer.skills || []).join(', ')}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button 
+                    onClick={() => handleTeamRequest(req.id, true)}
+                    className="btn"
+                    style={{ background: 'var(--success)', color: 'white', padding: '0.5rem 1rem', fontSize: '0.85rem' }}
+                  >
+                    Approve
+                  </button>
+                  <button 
+                    onClick={() => handleTeamRequest(req.id, false)}
+                    className="btn btn-outline"
+                    style={{ padding: '0.5rem 1rem', fontSize: '0.85rem', color: 'var(--danger)', borderColor: 'var(--danger)' }}
+                  >
+                    Deny
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div style={{ marginBottom: '1rem' }}>
+        <h3 style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>Mission Matches</h3>
+      </div>
+
       {items.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
           {items.map(item => (
             <div key={item.id} className="card" style={{ borderLeft: `6px solid ${item.severity > 3 ? 'var(--danger)' : 'var(--primary)'}` }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
+              <div className="card-header" style={{ marginBottom: '1rem', padding: 0, border: 'none' }}>
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                     <h3 style={{ margin: 0 }}>{item.issue_type}</h3>
@@ -86,6 +145,15 @@ export default function Inbox() {
 
               <p style={{ fontSize: '0.95rem', lineHeight: '1.5', margin: '0 0 1.5rem 0' }}>{item.summary}</p>
 
+              {item.recommended_procedure && (
+                <div style={{ marginBottom: '1.5rem', padding: '1rem', background: 'rgba(255,255,255,0.05)', borderRadius: 'var(--radius)', borderLeft: '3px solid var(--primary)' }}>
+                  <h5 style={{ margin: '0 0 0.5rem 0', fontSize: '0.85rem', color: 'var(--text)', textTransform: 'uppercase' }}>Recommended Procedure</h5>
+                  <p style={{ fontSize: '0.9rem', color: 'var(--text-light)', margin: 0, whiteSpace: 'pre-wrap' }}>
+                    {item.recommended_procedure}
+                  </p>
+                </div>
+              )}
+
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1.5rem' }}>
                 {item.reasons.map((reason, i) => (
                   <span key={i} style={{ fontSize: '0.75rem', background: 'var(--border)', padding: '0.2rem 0.6rem', borderRadius: '1rem', color: 'var(--text-light)' }}>
@@ -94,18 +162,18 @@ export default function Inbox() {
                 ))}
               </div>
 
-              <div style={{ display: 'flex', gap: '1rem' }}>
+              <div className="flex-responsive" style={{ gap: '1rem' }}>
                 <button 
                   onClick={() => handleAccept(item.id)}
                   className="btn btn-primary" 
-                  style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
+                  style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem' }}
                 >
                   <CheckCircle size={18} /> Accept Mission
                 </button>
                 <NavLink 
                   to={`/match/${item.id}`} 
                   className="btn" 
-                  style={{ border: '1px solid var(--border)', background: 'white' }}
+                  style={{ border: '1px solid var(--border)', background: 'white', width: '100%', textAlign: 'center' }}
                 >
                   View Details
                 </NavLink>

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
-import { UserPlus, Mail, Lock, User, MapPin, Tag } from 'lucide-react';
+import { UserPlus, Mail, Lock, User, MapPin, Tag, Phone } from 'lucide-react';
 import { supabase } from '../supabase';
 
 const API_URL = 'http://localhost:8000';
@@ -12,7 +12,8 @@ export default function Signup() {
     password: '',
     name: '',
     location: '',
-    skills: ''
+    skills: '',
+    phone_number: ''
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -48,7 +49,8 @@ export default function Signup() {
         await axios.put(`${API_URL}/auth/me`, {
           name: formData.name,
           location: formData.location,
-          skills: skillsArray
+          skills: skillsArray,
+          phone_number: formData.phone_number || null
         }, {
           headers: { Authorization: `Bearer ${data.session?.access_token}` }
         });
@@ -142,7 +144,19 @@ export default function Signup() {
           />
         </div>
 
-        <button type="submit" className="btn btn-primary" disabled={loading} style={{ marginTop: '1rem' }}>
+        <div>
+          <label className="form-label"><Phone size={14} /> Phone Number (Optional)</label>
+          <input 
+            type="tel" 
+            name="phone_number"
+            className="form-control" 
+            value={formData.phone_number}
+            onChange={handleChange}
+            placeholder="+1 234 567 8900"
+          />
+        </div>
+
+        <button type="submit" className="btn btn-primary btn-full" disabled={loading} style={{ marginTop: '1rem' }}>
           {loading ? 'Creating Account...' : 'Register as Volunteer'}
         </button>
 
