@@ -1,14 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import { Link } from 'react-router-dom';
 import { Users, Plus, Upload, Loader, Image as ImageIcon } from 'lucide-react';
+import { useDataCache } from '../DataCache';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY;
 
 function Teams() {
-  const [teams, setTeams] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { teams, publicLoading, refreshTeams } = useDataCache();
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', description: '' });
   const [imageFile, setImageFile] = useState(null);
@@ -17,31 +17,16 @@ function Teams() {
   
   const token = localStorage.getItem('rs_token');
 
-  const fetchTeams = async () => {
-    try {
-      const res = await axios.get(`${API_URL}/teams`);
-      setTeams(res.data);
-    } catch (err) {
-      console.error("Failed to fetch teams", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchTeams();
-  }, []);
-
   const handleImageUpload = async (file) => {
-    const formData = new FormData();
-    formData.append('image', file);
+    const fd = new FormData();
+    fd.append('image', file);
     
     if (!IMGBB_API_KEY) {
       throw new Error("Missing ImgBB API Key! Please add VITE_IMGBB_API_KEY to your frontend .env file.");
     }
     
     try {
-      const res = await axios.post(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, formData);
+      const res = await axios.post(`https://api.imgbb.com/1/upload?key=${IMGBB_API_KEY}`, fd);
       return res.data.data.url;
     } catch (err) {
       console.error("Image upload failed", err);
@@ -73,7 +58,7 @@ function Teams() {
       setFormData({ name: '', description: '' });
       setImageFile(null);
       setShowCreateForm(false);
-      fetchTeams();
+      refreshTeams();
     } catch (err) {
       setError(err.response?.data?.detail || err.message || 'Failed to create team');
     } finally {
@@ -81,7 +66,7 @@ function Teams() {
     }
   };
 
-  if (loading) {
+  if (publicLoading) {
     return <div className="skeleton" style={{ height: '200px' }}></div>;
   }
 
@@ -155,7 +140,7 @@ function Teams() {
                 <img 
                   src={team.image_url} 
                   alt={team.name} 
-                  style={{ width: '100%', height: '150px', objectFit: 'cover', borderRadius: '8px 8px 0 0', margin: '-1.5rem -1.5rem 1rem -1.5rem', width: 'calc(100% + 3rem)' }} 
+                  style={{ width: 'calc(100% + 3rem)', height: '150px', objectFit: 'cover', borderRadius: '8px 8px 0 0', margin: '-1.5rem -1.5rem 1rem -1.5rem' }} 
                 />
               ) : (
                 <div style={{ width: 'calc(100% + 3rem)', height: '150px', background: 'var(--bg-dark)', borderRadius: '8px 8px 0 0', margin: '-1.5rem -1.5rem 1rem -1.5rem', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--primary)' }}>

@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react
 import { Activity, ShieldAlert, HeartHandshake, Send, LogIn, LogOut, Mail, User as UserIcon } from 'lucide-react';
 import axios from 'axios';
 import { supabase } from './supabase';
+import { DataCacheProvider } from './DataCache';
 import Home from './components/Home';
 import Dashboard from './components/Dashboard';
 import ReportForm from './components/ReportForm';
@@ -92,6 +93,7 @@ function App() {
 
   return (
     <Router>
+      <DataCacheProvider session={session}>
       <div className="app">
         <header>
           <div className="flex-responsive">
@@ -207,6 +209,7 @@ function App() {
           </Routes>
         </main>
       </div>
+      </DataCacheProvider>
     </Router>
   );
 }

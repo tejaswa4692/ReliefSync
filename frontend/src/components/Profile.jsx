@@ -1,22 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { User, MapPin, Tag, Save, CheckCircle, Mail, Activity, ShieldAlert, Loader2, Camera, Users, Phone } from 'lucide-react';
+import { User, MapPin, Tag, Save, CheckCircle, Mail, Activity, ShieldAlert, Loader2, Camera, Users, Phone, Building2, Globe, Briefcase } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useDataCache } from '../DataCache';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 const IMGBB_API_KEY = import.meta.env.VITE_IMGBB_API_KEY; 
 
 export default function Profile({ user, onUpdate }) {
+  const { myAssignments, myTeams, authLoading } = useDataCache();
   const [formData, setFormData] = useState({
     name: '',
     location: '',
     skills: '',
     availability: true,
     avatar_url: '',
-    phone_number: ''
+    phone_number: '',
+    ngo_member: false,
+    ngo_name: '',
+    ngo_role: '',
+    ngo_website: ''
   });
-  const [assignments, setAssignments] = useState([]);
-  const [teams, setTeams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [success, setSuccess] = useState(false);
@@ -24,7 +28,7 @@ export default function Profile({ user, onUpdate }) {
 
   useEffect(() => {
     const init = async () => {
-      await Promise.all([fetchProfile(), fetchAssignments(), fetchTeams()]);
+      await fetchProfile();
       setLoading(false);
     };
     init();
@@ -42,34 +46,14 @@ export default function Profile({ user, onUpdate }) {
         skills: (res.data.skills || []).join(', '),
         availability: res.data.availability === true,
         avatar_url: res.data.avatar_url || '',
-        phone_number: res.data.phone_number || ''
+        phone_number: res.data.phone_number || '',
+        ngo_member: res.data.ngo_member || false,
+        ngo_name: res.data.ngo_name || '',
+        ngo_role: res.data.ngo_role || '',
+        ngo_website: res.data.ngo_website || ''
       });
     } catch (err) {
       console.error("Profile fetch error:", err);
-    }
-  };
-
-  const fetchAssignments = async () => {
-    const token = localStorage.getItem('rs_token');
-    try {
-      const res = await axios.get(`${API_URL}/assignments/me`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAssignments(res.data || []);
-    } catch (err) {
-      console.error("Assignments fetch error:", err);
-    }
-  };
-
-  const fetchTeams = async () => {
-    const token = localStorage.getItem('rs_token');
-    try {
-      const res = await axios.get(`${API_URL}/users/me/teams`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setTeams(res.data || []);
-    } catch (err) {
-      console.error("Teams fetch error:", err);
     }
   };
 
@@ -130,7 +114,7 @@ export default function Profile({ user, onUpdate }) {
 
   const isIncomplete = !formData.location || formData.skills.length < 3;
 
-  if (loading) return (
+  if (loading || authLoading) return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
       <div className="card skeleton" style={{ height: '300px' }}></div>
       <div className="card skeleton" style={{ height: '200px' }}></div>
@@ -268,6 +252,94 @@ export default function Profile({ user, onUpdate }) {
             />
           </div>
 
+          {/* NGO Affiliation Section */}
+          <div style={{
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius)',
+            padding: '1.5rem',
+            background: formData.ngo_member ? 'rgba(52, 152, 219, 0.05)' : 'transparent',
+            transition: 'all 0.3s ease'
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: formData.ngo_member ? '1.5rem' : 0, transition: 'margin 0.3s ease' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <Building2 size={20} color="var(--primary)" />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>NGO Affiliation</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--text-light)' }}>Are you part of an NGO or relief organization?</div>
+                </div>
+              </div>
+              <div 
+                onClick={() => setFormData(prev => ({ ...prev, ngo_member: !prev.ngo_member, ...(!prev.ngo_member ? {} : { ngo_name: '', ngo_role: '', ngo_website: '' }) }))}
+                style={{
+                  width: '48px',
+                  height: '26px',
+                  borderRadius: '13px',
+                  background: formData.ngo_member ? 'var(--primary)' : '#ccc',
+                  cursor: 'pointer',
+                  position: 'relative',
+                  transition: 'background 0.3s ease',
+                  flexShrink: 0
+                }}
+              >
+                <div style={{
+                  width: '22px',
+                  height: '22px',
+                  borderRadius: '50%',
+                  background: 'white',
+                  position: 'absolute',
+                  top: '2px',
+                  left: formData.ngo_member ? '24px' : '2px',
+                  transition: 'left 0.3s ease',
+                  boxShadow: '0 1px 4px rgba(0,0,0,0.2)'
+                }} />
+              </div>
+            </div>
+
+            {formData.ngo_member && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', animation: 'fadeIn 0.3s ease' }}>
+                <div>
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Building2 size={14} /> NGO / Organization Name
+                  </label>
+                  <input 
+                    type="text" 
+                    className="form-control"
+                    value={formData.ngo_name}
+                    onChange={(e) => setFormData({...formData, ngo_name: e.target.value})}
+                    placeholder="e.g. Red Cross, Doctors Without Borders"
+                    required={formData.ngo_member}
+                  />
+                </div>
+                <div className="grid grid-cols-2">
+                  <div>
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Briefcase size={14} /> Your Role
+                    </label>
+                    <input 
+                      type="text" 
+                      className="form-control"
+                      value={formData.ngo_role}
+                      onChange={(e) => setFormData({...formData, ngo_role: e.target.value})}
+                      placeholder="e.g. Field Coordinator, Volunteer Lead"
+                    />
+                  </div>
+                  <div>
+                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Globe size={14} /> NGO Website
+                    </label>
+                    <input 
+                      type="url" 
+                      className="form-control"
+                      value={formData.ngo_website}
+                      onChange={(e) => setFormData({...formData, ngo_website: e.target.value})}
+                      placeholder="https://www.example.org"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <button type="submit" className="btn btn-primary" disabled={saving || uploading}>
               {saving ? 'Saving...' : <><Save size={18} /> Save Changes</>}
@@ -280,9 +352,9 @@ export default function Profile({ user, onUpdate }) {
       {/* Missions */}
       <div className="card">
         <h3><Activity size={20} /> My Active Missions</h3>
-        {assignments.length > 0 ? (
+        {myAssignments.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {assignments.map(a => (
+            {myAssignments.map(a => (
               <div key={a.id} className="card-header" style={{ padding: '1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 0 }}>
                 <div>
                   <strong>{a.issues?.issue_type}</strong>
@@ -300,9 +372,9 @@ export default function Profile({ user, onUpdate }) {
       {/* Teams */}
       <div className="card">
         <h3><Users size={20} /> My Teams</h3>
-        {teams.length > 0 ? (
+        {myTeams.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            {teams.map(t => (
+            {myTeams.map(t => (
               <div key={t.id} className="card-header" style={{ padding: '1rem', border: '1px solid var(--border)', borderRadius: 'var(--radius)', marginBottom: 0 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                   {t.image_url ? (

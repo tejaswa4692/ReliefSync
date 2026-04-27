@@ -1,59 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { Users, MapPin, ChevronRight, Search, Loader2 } from 'lucide-react';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-const PAGE_SIZE = 20;
+import { useDataCache } from '../DataCache';
 
 export default function VolunteersList() {
-  const [volunteers, setVolunteers] = useState([]);
+  const { volunteers, publicLoading, refreshVolunteers } = useDataCache();
   const [searchTerm, setSearchTerm] = useState('');
-  const [loading, setLoading] = useState(true);
-  const [loadingMore, setLoadingMore] = useState(false);
-  const [offset, setOffset] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const loadMoreRef = useRef(null);
 
-  useEffect(() => {
-    fetchVolunteers(0, true);
-  }, []);
-
-  const fetchVolunteers = async (currentOffset, isInitial = false) => {
-    if (isInitial) setLoading(true);
-    else setLoadingMore(true);
-
-    try {
-      const res = await axios.get(`${API_URL}/volunteers?limit=${PAGE_SIZE}&offset=${currentOffset}`);
-      const newData = res.data || [];
-      
-      if (isInitial) {
-        setVolunteers(newData);
-      } else {
-        setVolunteers(prev => [...prev, ...newData]);
-      }
-      
-      setHasMore(newData.length === PAGE_SIZE);
-      setOffset(currentOffset + PAGE_SIZE);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-      setLoadingMore(false);
-    }
-  };
-
-  const handleLoadMore = () => {
-    fetchVolunteers(offset);
-  };
-
-  // Only filter from the loaded set for instant search feel
+  // Filter from the cached set for instant search feel
   const filteredVols = volunteers.filter(v => 
     v.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     v.location.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (loading) return <div className="skeleton" style={{ height: '400px', borderRadius: 'var(--radius)' }}></div>;
+  if (publicLoading) return <div className="skeleton" style={{ height: '400px', borderRadius: 'var(--radius)' }}></div>;
 
   return (
     <div style={{ maxWidth: '1000px', margin: '0 auto' }}>
@@ -124,28 +84,6 @@ export default function VolunteersList() {
           </NavLink>
         ))}
       </div>
-
-      {hasMore && !searchTerm && (
-        <div style={{ textAlign: 'center', marginTop: '2rem', paddingBottom: '3rem' }}>
-          <button 
-            onClick={handleLoadMore} 
-            className="btn" 
-            disabled={loadingMore}
-            style={{ 
-              background: 'white', 
-              border: '1px solid var(--border)', 
-              padding: '0.75rem 2rem', 
-              borderRadius: '2rem',
-              fontWeight: 600,
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.5rem'
-            }}
-          >
-            {loadingMore ? <Loader2 size={18} className="spin" /> : 'Load More Volunteers'}
-          </button>
-        </div>
-      )}
 
       {filteredVols.length === 0 && (
         <div style={{ textAlign: 'center', padding: '4rem' }}>

@@ -31,6 +31,10 @@ CREATE TABLE volunteers (
     skills TEXT[] DEFAULT '{}',
     availability TEXT DEFAULT 'available',
     phone_number TEXT,
+    ngo_member BOOLEAN DEFAULT FALSE,
+    ngo_name TEXT,
+    ngo_role TEXT,
+    ngo_website TEXT,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
 );
 

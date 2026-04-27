@@ -55,6 +55,10 @@ class SignupRequest(BaseModel):
     location: str
     skills: list[str]
     phone_number: str = None
+    ngo_member: bool = False
+    ngo_name: str = None
+    ngo_role: str = None
+    ngo_website: str = None
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -67,6 +71,10 @@ class ProfileUpdate(BaseModel):
     availability: bool = True
     avatar_url: str = None
     phone_number: str = None
+    ngo_member: bool = False
+    ngo_name: str = None
+    ngo_role: str = None
+    ngo_website: str = None
 
 class AssignmentRequest(BaseModel):
     issue_id: int
@@ -178,18 +186,29 @@ def predict_impact_with_gemini(issue_type, severity, people_affected):
             "recommended_action": "Proceed with standard emergency protocols."
         }
 
+def is_ngo_verified(vol):
+    """Check if a volunteer is NGO-affiliated with complete details."""
+    return (
+        vol.get('ngo_member') == True
+        and vol.get('ngo_name') not in (None, '')
+        and vol.get('ngo_role') not in (None, '')
+        and vol.get('ngo_website') not in (None, '')
+    )
+
 def run_ai_matching(issue_id, issue):
-    """Triggers AI matching for a specific issue and caches recommendations."""
+    """Triggers AI matching for a specific issue and caches recommendations.
+    Only NGO-verified volunteers are included in AI recommendations."""
     if not model or not supabase:
         return None
         
     print(f"DEBUG: Running immediate AI matching for issue {issue_id}")
     
-    # 1. Fetch available volunteers
+    # 1. Fetch available volunteers (only NGO-verified ones for AI matching)
     vols_res = supabase.table("volunteers").select("*").eq("availability", True).execute()
-    available_vols = vols_res.data
+    available_vols = [v for v in vols_res.data if is_ngo_verified(v)]
     
     if not available_vols:
+        print("DEBUG: No NGO-verified volunteers available for AI matching")
         return []
 
     # 2. Call Gemini for ranking
@@ -352,7 +371,11 @@ async def signup(req: SignupRequest):
             "name": req.name,
             "location": req.location,
             "skills": req.skills,
-            "phone_number": req.phone_number
+            "phone_number": req.phone_number,
+            "ngo_member": req.ngo_member,
+            "ngo_name": req.ngo_name if req.ngo_member else None,
+            "ngo_role": req.ngo_role if req.ngo_member else None,
+            "ngo_website": req.ngo_website if req.ngo_member else None
         }).execute()
         
         return {"message": "User created", "user": auth_res.user, "profile": profile_res.data[0]}
@@ -391,7 +414,11 @@ async def update_me(req: ProfileUpdate, user = Depends(get_current_user)):
             "skills": req.skills,
             "availability": req.availability,
             "avatar_url": req.avatar_url,
-            "phone_number": req.phone_number
+            "phone_number": req.phone_number,
+            "ngo_member": req.ngo_member,
+            "ngo_name": req.ngo_name if req.ngo_member else None,
+            "ngo_role": req.ngo_role if req.ngo_member else None,
+            "ngo_website": req.ngo_website if req.ngo_member else None
         }).eq("id", user.id).execute()
         
         if not res.data:
@@ -489,8 +516,8 @@ async def match_volunteers(issue_id: int, user = Depends(get_current_user)):
         scored_vols = []
         for rec in cache_res.data:
             vol = rec.get('volunteers')
-            # LIVE CHECK: Only show if they are STILL on duty and haven't joined yet
-            if vol and vol.get('availability') == True and str(vol['id']) not in joined_ids:
+            # LIVE CHECK: Only show if they are STILL on duty, NGO-verified, and haven't joined yet
+            if vol and vol.get('availability') == True and is_ngo_verified(vol) and str(vol['id']) not in joined_ids:
                 vol['match_score'] = rec['match_score']
                 vol['reasoning'] = rec['reasoning']
                 scored_vols.append(vol)
@@ -505,7 +532,8 @@ async def match_volunteers(issue_id: int, user = Depends(get_current_user)):
     # 3. No cache? Do Batch AI Matching
     print(f"DEBUG: Generating BATCH AI matches for issue {issue_id}")
     vols_res = supabase.table("volunteers").select("*").eq("availability", True).execute()
-    available_vols = [v for v in vols_res.data if str(v['id']) not in joined_ids]
+    # Only NGO-verified volunteers are eligible for AI recommendations
+    available_vols = [v for v in vols_res.data if str(v['id']) not in joined_ids and is_ngo_verified(v)]
 
     if not available_vols:
         return {

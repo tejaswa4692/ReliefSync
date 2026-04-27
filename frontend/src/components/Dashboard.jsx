@@ -1,36 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import React from 'react';
 import { AlertTriangle, Users, MapPin, Activity } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+import { useDataCache } from '../DataCache';
 
 export default function Dashboard() {
-  const [issues, setIssues] = useState([]);
-  const [alerts, setAlerts] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { issues, alerts, publicLoading } = useDataCache();
 
-  useEffect(() => {
-    fetchData();
-  }, []);
-
-  const fetchData = async () => {
-    try {
-      const [issuesRes, alertsRes] = await Promise.all([
-        axios.get(`${API_URL}/issues`).catch(() => ({ data: [] })),
-        axios.get(`${API_URL}/alerts`).catch(() => ({ data: [] }))
-      ]);
-      
-      setIssues(issuesRes.data || []);
-      setAlerts(alertsRes.data || []);
-      setLoading(false);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-      setLoading(false);
-    }
-  };
-
-  if (loading) {
+  if (publicLoading) {
     return <div className="grid grid-cols-1"><div className="card skeleton" style={{height: '200px'}}></div></div>;
   }
 

@@ -1,34 +1,13 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import axios from 'axios';
 import { Mail, MapPin, ShieldAlert, CheckCircle, Clock, Zap, ArrowRight } from 'lucide-react';
 import { NavLink } from 'react-router-dom';
+import { useDataCache } from '../DataCache';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 export default function Inbox() {
-  const [items, setItems] = useState([]);
-  const [teamRequests, setTeamRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchInbox();
-  }, []);
-
-  const fetchInbox = async () => {
-    const token = localStorage.getItem('rs_token');
-    try {
-      const [inboxRes, requestsRes] = await Promise.all([
-        axios.get(`${API_URL}/inbox`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API_URL}/teams/requests/pending`, { headers: { Authorization: `Bearer ${token}` } }).catch(e => ({data: []}))
-      ]);
-      setItems(inboxRes.data);
-      setTeamRequests(requestsRes.data);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { inbox, setInbox, teamRequests, setTeamRequests, authLoading, refreshInbox } = useDataCache();
 
   const handleTeamRequest = async (requestId, approved) => {
     const token = localStorage.getItem('rs_token');
@@ -53,7 +32,7 @@ export default function Inbox() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       // Remove from inbox UI
-      setItems(prev => prev.filter(item => item.id !== issueId));
+      setInbox(prev => prev.filter(item => item.id !== issueId));
       alert("Mission Accepted! It's now in your active cases.");
     } catch (err) {
       console.error(err);
@@ -61,7 +40,7 @@ export default function Inbox() {
     }
   };
 
-  if (loading) return <div className="skeleton" style={{ height: '400px' }}></div>;
+  if (authLoading) return <div className="skeleton" style={{ height: '400px' }}></div>;
 
   return (
     <div style={{ maxWidth: '800px', margin: '0 auto' }}>
@@ -115,9 +94,9 @@ export default function Inbox() {
         <h3 style={{ borderBottom: '1px solid var(--border)', paddingBottom: '0.5rem' }}>Mission Matches</h3>
       </div>
 
-      {items.length > 0 ? (
+      {inbox.length > 0 ? (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
-          {items.map(item => (
+          {inbox.map(item => (
             <div key={item.id} className="card" style={{ borderLeft: `6px solid ${item.severity > 3 ? 'var(--danger)' : 'var(--primary)'}` }}>
               <div className="card-header" style={{ marginBottom: '1rem', padding: 0, border: 'none' }}>
                 <div>
